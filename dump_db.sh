@@ -132,9 +132,9 @@ parse_yaml() {
 }
 
 copy_to_public() {
+  sudo cp db/$FILE_NAME public/$FILE_NAME
   echo "File copied...${green}${toend}[OK]"
   echo "${reset}"
-  # sudo cp db/dump.sql public/dump.sql
 }
 
 dump_db () {
@@ -144,7 +144,7 @@ dump_db () {
   check_parameters
 
   export PGPASSWORD="${!PASSWORD}"
-  pg_dump -U ${!USERNAME} -h localhost ${!DATABASE} > $FILE_NAME
+  pg_dump -U ${!USERNAME} -h localhost ${!DATABASE} > db/$FILE_NAME
   echo "Dumping database...${green}${toend}[OK]"
   echo "${reset}"
   if [ "$COPY" = true ]; then
