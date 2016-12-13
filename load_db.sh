@@ -1,5 +1,5 @@
 #!/bin/bash
-# Script to automaticly dump Postgres DB using RoR database.yml
+# Script to automaticly load Postgres DB using RoR database.yml
 # Error codes
 readonly ENOENT=10  # No such file or directory
 
@@ -12,15 +12,13 @@ reset=$(tput sgr0)
 toend=$(tput hpa $(tput cols))$(tput cub 6)
 
 parse_opts() {
-  while getopts ":hcb:f:" opt ;
+  while getopts ":hb:r:" opt ;
   do
     case $opt in
       b) set_branch $OPTARG;
          set_variables $BRANCH
           ;;
-      c) COPY=true;
-          ;;
-      f) FILE_NAME=$OPTARG;
+      r) FILE_PATH=$OPTARG;
           ;;
       h) print_help;
           exit 1
@@ -38,9 +36,8 @@ print_help() {
   echo
   echo "Usage: $ME [arguments]"
   echo "Arguments:"
-  echo -e "  -c\t\tCopy db/dump.sql → public/dump.sql"
   echo -e "  -b\t\tDefine environment, available dev/test/prod/stag. Default: prod"
-  echo -e "  -f\t\tSet file name. Default: dump.sql"
+  echo -e "  -r\t\tSet path to dump file. Default: /home/toor/dump.sql"
   echo -e "  -h\t\tShow this message."
   echo
   echo "Exit codes:"
@@ -51,7 +48,7 @@ print_help() {
 
 
 defaults() {
-  FILE_NAME='dump.sql';
+  FILE_PATH='/home/toor/dump.sql';
   BRANCH=$PREFIX"production";
   COPY=false;
   set_variables $BRANCH
@@ -95,6 +92,15 @@ check_config_file() {
   echo "${reset}"
 }
 
+check_dump_file() {
+  if [ ! -f $FILE_PATH ]; then
+    echo -en "Dump file not found! Check $FILE_PATH${red}${toend}[FAIL]\n"
+    exit "$ENOENT" # Exits whole script with error code
+  fi
+  echo "Dump file...${green}${toend}[OK]"
+  echo "${reset}"
+}
+
 check_parameters() {
   if [ -z "${!DATABASE}" ]; then
     parsing_error "Database name"
@@ -132,28 +138,20 @@ parse_yaml() {
   }'
 }
 
-copy_to_public() {
-  sudo cp db/$FILE_NAME public/$FILE_NAME
-  echo "File copied...${green}${toend}[OK]"
-  echo "${reset}"
-}
-
-dump_db () {
+load_db () {
   check_config_file
+  check_dump_file
   # TODO: change this to proper way
   eval $(parse_yaml config/database.yml $PREFIX)
   check_parameters
 
   export PGPASSWORD="${!PASSWORD}"
-  pg_dump -U ${!USERNAME} -h localhost ${!DATABASE} > db/$FILE_NAME
-  echo "Dumping database...${green}${toend}[OK]"
+  psql -U ${!USERNAME} -h localhost ${!DATABASE} < $FILE_PATH
+  echo "Database loaded...${green}${toend}[OK]"
   echo "${reset}"
-  if [ "$COPY" = true ]; then
-    copy_to_public
-  fi
 }
 
 # Function queue
 defaults
 parse_opts $@
-dump_db
+load_db
